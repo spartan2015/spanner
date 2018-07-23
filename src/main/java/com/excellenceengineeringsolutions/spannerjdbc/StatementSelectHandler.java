@@ -6,13 +6,13 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
-import com.excellenceengineeringsolutions.spanner.StatementHandlerCommon;
+
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.spannerQueryParams;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.spannerQueryParams;
 
 /**
  * Handle sql select statements through Spanner Client

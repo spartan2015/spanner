@@ -8,6 +8,10 @@ package com.excellenceengineeringsolutions;
 public class AppException extends Exception
 {
 
+  public AppException(String s, Exception e)
+  {
+  }
+
   static class IFrwContainer{}
   static class IFrwComponentHandle{}
 
@@ -16,10 +20,4 @@ public class AppException extends Exception
 
   }
 
-  public AppException(IFrwContainer container,
-                      IFrwComponentHandle handle,
-                      String msg)
-  {
-
-  }
 }

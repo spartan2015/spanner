@@ -66,7 +66,7 @@ public class Jdbc3Update
 		try {
 			String user = "root";
 			String password = "1234";
-			String url = "jdbc:mysql://localhost:3306/test";
+			String url = "jdbc:mysql://localhost:3306/beyondEnd";
 			connection = DriverManager.getConnection(url, user, password);
 			connection.setAutoCommit(false);
 

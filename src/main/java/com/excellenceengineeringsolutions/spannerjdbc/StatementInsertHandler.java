@@ -2,11 +2,10 @@
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
+import com.excellenceengineeringsolutions.AppException;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.TransactionContext;
-import com.excellenceengineeringsolutions.spanner.SpannerMutationStatement;
-import com.excellenceengineeringsolutions.db.intf.SdfException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,10 +16,9 @@ import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.TABLE_NAME_REG_EXP;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.bindParam;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.parseValue;
-
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.TABLE_NAME_REG_EXP;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.bindParam;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.parseValue;
 
 /**
  * Handles executions of sql queries on spanner
@@ -38,7 +36,7 @@ public class StatementInsertHandler
     // or, throw `UnsupportedOperationException`
   }
 
-  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws SdfException
+  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws AppException
   {
     String[] insertParts = parserInsert(insert);
     Mutation.WriteBuilder writer = Mutation.newInsertBuilder(insertParts[0]);
@@ -97,7 +95,7 @@ public class StatementInsertHandler
     return result.toArray();
   }
 
-  static String[] parserInsert(String insert) throws SdfException
+  static String[] parserInsert(String insert) throws AppException
   {
     Matcher matcher = INSERT_INTO_REGEXP.matcher(insert);
     if ( matcher.find() )
@@ -105,11 +103,11 @@ public class StatementInsertHandler
       return new String[]{matcher.group(1), matcher.group(2), matcher.group(3)};
     } else
     {
-      throw new SdfException(String.format("Could not extract table name from query [%s]", insert));
+      throw new AppException(String.format("Could not extract table name from query [%s]", insert));
     }
   }
 
-  public static class InsertMutationHolder implements com.excellenceengineeringsolutions.spanner.SpannerMutationStatement
+  public static class InsertMutationHolder implements SpannerMutationStatement
   {
     String query;
     String tableName;
@@ -150,21 +148,21 @@ public class StatementInsertHandler
       return this;
     }
 
-    public void execute(DatabaseClient client) throws SdfException
+    public void execute(DatabaseClient client) throws AppException
     {
       client.write(Arrays.asList(build()));
     }
 
-    public void execute(TransactionContext transaction) throws SdfException
+    public void execute(TransactionContext transaction) throws AppException
     {
       transaction.buffer(build());
     }
 
-    public Mutation build() throws SdfException
+    public Mutation build() throws AppException
     {
       if ( !requiredParams.isEmpty() )
       {
-        throw new SdfException("missing required params: " + requiredParams + " in original query: " + query);
+        throw new AppException("missing required params: " + requiredParams + " in original query: " + query);
       }
       for ( String defaultParam : defaultParameters.get(tableName).keySet() )
       {
@@ -178,7 +176,7 @@ public class StatementInsertHandler
       return mutationBuilder.build();
     }
 
-    private Object getInsertParamValue(String defaultParam) throws SdfException
+    private Object getInsertParamValue(String defaultParam) throws AppException
     {
       Object paramValue = defaultParameters.get(tableName).get(defaultParam);
       if ( paramValue instanceof Callable )
@@ -189,7 +187,7 @@ public class StatementInsertHandler
         }
         catch ( Exception e )
         {
-          throw new SdfException("Could not lazy fetch parameter", e);
+          throw new AppException("Could not lazy fetch parameter", e);
         }
       }
       return paramValue;

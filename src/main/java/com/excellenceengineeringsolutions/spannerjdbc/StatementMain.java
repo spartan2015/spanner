@@ -2,6 +2,7 @@
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
+import com.excellenceengineeringsolutions.AppException;
 import com.google.cloud.grpc.GrpcTransportOptions;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
@@ -9,19 +10,16 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.excellenceengineeringsolutions.spanner.StatementInsertHandler;
-import com.excellenceengineeringsolutions.spanner.StatementSelectHandler;
-import com.excellenceengineeringsolutions.db.intf.SdfException;
 
 import java.util.HashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-import static com.excellenceengineeringsolutions.spanner.SpannerGenericResultSetRead.readFieldAsString;
-import static com.excellenceengineeringsolutions.spanner.StatementDeleteHandler.spannerDeleteBuilder;
-import static com.excellenceengineeringsolutions.spanner.StatementInsertHandler.spannerInsertBuilder;
-import static com.excellenceengineeringsolutions.spanner.StatementSelectHandler.spannerQueryBuilder;
-import static com.excellenceengineeringsolutions.spanner.StatementUpdateHandler.spannerUpdateBuilder;
+import static com.excellenceengineeringsolutions.spannerjdbc.SpannerGenericResultSetRead.readFieldAsString;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementDeleteHandler.spannerDeleteBuilder;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementInsertHandler.spannerInsertBuilder;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementSelectHandler.spannerQueryBuilder;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementUpdateHandler.spannerUpdateBuilder;
 
 /**
  */
@@ -45,7 +43,7 @@ public class StatementMain
     }
   }
 
-  public static void execute(String instanceId, String databaseId, String statement) throws SdfException
+  public static void execute(String instanceId, String databaseId, String statement) throws AppException
   {
     String projectId = "a-cloud-spanner";
     SpannerOptions.Builder spannerOptionsBuilder = SpannerOptions.newBuilder()

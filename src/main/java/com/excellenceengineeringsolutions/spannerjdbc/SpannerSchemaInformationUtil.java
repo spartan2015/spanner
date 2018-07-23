@@ -1,13 +1,5 @@
-/* Copyright (c) Nokia Siemens Networks 2007 All Rights Reserved
-   The reproduction, transmission or use of this document or its contents
-   is not permitted without express written authority. Offenders will be
-   liable for damages. All rights, including rights created by patent grant
-   or registration of a utility model or design, are reserved.
-   Technical modifications possible.
-   Technical specifications and features are binding only insofar as they
-   are specifically and expressly agreed upon in a written contract.
-*/
 
+/*
 package com.excellenceengineeringsolutions.spannerjdbc;
 
 import com.google.cloud.spanner.DatabaseClient;
@@ -16,14 +8,14 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.excellenceengineeringsolutions.spannerjdbc.SpannerClientProvider;
-/*
+
 import com.excellenceengineeringsolutions.db.intf.ISdfHome;
 import com.excellenceengineeringsolutions.db.intf.RuntimeException;
-import de.siemens.advantage.platform.cframe.intf.fapi.IFrwComponentHandle;
-import de.siemens.advantage.platform.cframe.intf.fapi.IFrwComponentManagementHome;
-import de.siemens.advantage.platform.cframe.intf.fapi.IFrwContainer;
-import de.siemens.advantage.platform.cframe.intf.fapi.IFrwSupervision;
-import de.siemens.advantage.platform.cframe.intf.fapi.IFrwTracer;
+import com.excellenceengineeringsolutions.intf.fapi.IFrwComponentHandle;
+import com.excellenceengineeringsolutions.intf.fapi.IFrwComponentManagementHome;
+import com.excellenceengineeringsolutions.intf.fapi.IFrwContainer;
+import com.excellenceengineeringsolutions.intf.fapi.IFrwSupervision;
+import com.excellenceengineeringsolutions.intf.fapi.IFrwTracer;
 
 import java.text.NumberFormat;
 import java.util.Collections;

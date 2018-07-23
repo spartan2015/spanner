@@ -11,7 +11,7 @@ import com.excellenceengineeringsolutions.spannerjdbc.BitwiseReverser;
 import com.excellenceengineeringsolutions.spannerjdbc.SpannerClientProvider;
 import com.excellenceengineeringsolutions.spannerjdbc.SpannerSequenceGenerator;
 import com.excellenceengineeringsolutions.db.intf.RuntimeException;
-import de.siemens.advantage.platform.cframe.intf.fapi.FrwException;
+import com.excellenceengineeringsolutions.intf.fapi.FrwException;
 import org.junit.BeforeClass;
 
 import java.util.Arrays;

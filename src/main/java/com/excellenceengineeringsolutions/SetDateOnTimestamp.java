@@ -58,7 +58,7 @@ public class SetDateOnTimestamp
     {
       spanner = options.getService();
       String instanceId = "cloud-instance-2";
-      String databaseId = "vasile-test";
+      String databaseId = "vasile-beyondEnd";
       DatabaseId db = DatabaseId.of(projectId, instanceId, databaseId);
 
       DatabaseClient dbClient = spanner.getDatabaseClient(db);

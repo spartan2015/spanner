@@ -2,15 +2,12 @@
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
+import com.excellenceengineeringsolutions.AppException;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.common.base.Preconditions;
-import com.excellenceengineeringsolutions.spanner.SpannerMutationStatement;
-import com.excellenceengineeringsolutions.spanner.StatementHandlerCommon;
-import com.excellenceengineeringsolutions.spanner.StatementSelectHandler;
-import com.excellenceengineeringsolutions.db.intf.SdfException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,13 +16,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.DYNAMIC;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.TABLE_NAME_REG_EXP;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.getKeys;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.join;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.parseValue;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.setToBuilderFromResultSet;
-import static com.excellenceengineeringsolutions.spanner.StatementSelectHandler.spannerQueryBuilder;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.DYNAMIC;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.TABLE_NAME_REG_EXP;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.getKeys;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.join;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.parseValue;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.setToBuilderFromResultSet;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementSelectHandler.spannerQueryBuilder;
 
 /**
  * Handling sql update statement through Spanner Client
@@ -43,19 +40,19 @@ public class StatementUpdateHandler
   }
 
   public static UpdateMutationHolder spannerUpdateBuilder(
-                                                          String updateQuery) throws SdfException
+                                                          String updateQuery) throws AppException
   {
     return spannerUpdateBuilder(null,updateQuery);
   }
 
   public static UpdateMutationHolder spannerUpdateBuilder(List<String> selectKeys,
-                                                          String updateQuery) throws SdfException
+                                                          String updateQuery) throws AppException
   {
     String[] updateParts = parserUpdate(updateQuery);
     AtomicInteger paramIndex = new AtomicInteger(1);
     UpdateParams updateSetMapHolder = getUpdateSetMap(updateParts[1], paramIndex);
     int fromParamIndex = paramIndex.get();
-    com.excellenceengineeringsolutions.spanner.StatementSelectHandler.SelectStatementHolder selectStatementHolder = spannerQueryBuilder(
+    StatementSelectHandler.SelectStatementHolder selectStatementHolder = spannerQueryBuilder(
       "select " + join(selectKeys) + " from " + updateParts[0] + " where " + updateParts[2], paramIndex);
     Map<String, Object> requiredSelectParams = new HashMap();
     for ( int i = fromParamIndex; i < paramIndex.get(); i++ )
@@ -68,7 +65,7 @@ public class StatementUpdateHandler
       requiredSelectParams, updateSetMapHolder.givenParams, updateSetMapHolder.indexToColumn);
   }
 
-  static String[] parserUpdate(String updateQuery) throws SdfException
+  static String[] parserUpdate(String updateQuery) throws AppException
   {
     Matcher matcher = UPDATE_REGEXP.matcher(updateQuery);
     if ( matcher.find() )
@@ -76,7 +73,7 @@ public class StatementUpdateHandler
       return new String[]{matcher.group(1), matcher.group(2), matcher.group(3)};
     } else
     {
-      throw new SdfException(String.format("Could not extract table name from query [%s]", updateQuery));
+      throw new AppException(String.format("Could not extract table name from query [%s]", updateQuery));
     }
   }
 
@@ -104,7 +101,7 @@ public class StatementUpdateHandler
     private String query;
     private String tableName;
     private List<String> keys;
-    private com.excellenceengineeringsolutions.spanner.StatementSelectHandler.SelectStatementHolder selectStatementHolder;
+    private StatementSelectHandler.SelectStatementHolder selectStatementHolder;
     private Map<String, Object> requiredSelectParams;
     private Map<String, Object> givenUpdateParams;
     private Map<String, Object> bindedUpdateParams = new HashMap<>();
@@ -152,13 +149,13 @@ public class StatementUpdateHandler
     }
 
     @Override
-    public void execute(DatabaseClient client) throws SdfException
+    public void execute(DatabaseClient client) throws AppException
     {
       executeUpdate(client);
     }
 
     @Override
-    public void execute(TransactionContext transaction) throws SdfException
+    public void execute(TransactionContext transaction) throws AppException
     {
       executeUpdate(transaction);
     }

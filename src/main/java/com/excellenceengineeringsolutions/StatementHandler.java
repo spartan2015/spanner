@@ -1,6 +1,6 @@
 
 
-
+/*
 package com.excellenceengineeringsolutions;
 
 import com.excellenceengineeringsolutions.spannerjdbc.BitwiseReverser;
@@ -594,28 +594,9 @@ public class StatementHandler
     return dbClient;
   }
 
-  private volatile SpannerSequenceGenerator spannerSequenceGenerator;
 
-  public SpannerSequenceGenerator getSequence() throws RuntimeException
-  {
-    if ( spannerSequenceGenerator == null )
-    {
-      synchronized ( SpannerSequenceGenerator.class )
-      {
-        if ( spannerSequenceGenerator == null )
-        {
-          spannerSequenceGenerator = new SpannerSequenceGenerator(
-            getSpannerClientProvider()
-          );
-        }
-      }
-    }
-    return spannerSequenceGenerator;
-  }
-  public long getNextSequenceValue(String sequenceName) throws FrwException
-  {
-    return BitwiseReverser.reverseBits(getSequence().getNextValue(sequenceName));
-  }
+
+
 
 }
 */

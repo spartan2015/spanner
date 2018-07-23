@@ -2,14 +2,13 @@
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
+import com.excellenceengineeringsolutions.AppException;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
-import com.excellenceengineeringsolutions.spanner.StatementSelectHandler;
-import com.excellenceengineeringsolutions.db.intf.SdfException;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -17,13 +16,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.DYNAMIC;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.TABLE_NAME_REG_EXP;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.getKeys;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.join;
-import static com.excellenceengineeringsolutions.spanner.StatementHandlerCommon.setToBuilderFromResultSet;
-import static com.excellenceengineeringsolutions.spanner.StatementSelectHandler.spannerQueryBuilder;
-
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.DYNAMIC;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.TABLE_NAME_REG_EXP;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.getKeys;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.join;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.setToBuilderFromResultSet;
+import static com.excellenceengineeringsolutions.spannerjdbc.StatementSelectHandler.spannerQueryBuilder;
 
 /**
  * Handling delete sql statements through Spanner Client
@@ -41,17 +39,17 @@ public class StatementDeleteHandler
   }
 
   public static DeleteMutationHolder spannerDeleteBuilder(
-                                                          String deleteQuery) throws SdfException
+                                                          String deleteQuery) throws AppException
   {
     return spannerDeleteBuilder(null, deleteQuery);
   }
 
   public static DeleteMutationHolder spannerDeleteBuilder(List<String> selectKeys,
-                                                          String deleteQuery) throws SdfException
+                                                          String deleteQuery) throws AppException
   {
     String[] queryParts = parserDelete(deleteQuery);
     AtomicInteger paramIndex = new AtomicInteger(1);
-    com.excellenceengineeringsolutions.spanner.StatementSelectHandler.SelectStatementHolder selectStatementHolder = spannerQueryBuilder(
+    StatementSelectHandler.SelectStatementHolder selectStatementHolder = spannerQueryBuilder(
       "select " + join(selectKeys) + " from " + queryParts[0] +
         (queryParts.length == 2 ? " where " + queryParts[1] : ""), paramIndex);
     return new DeleteMutationHolder(deleteQuery,
@@ -60,7 +58,7 @@ public class StatementDeleteHandler
 
 
 
-  static String[] parserDelete(String updateQuery) throws SdfException
+  static String[] parserDelete(String updateQuery) throws AppException
   {
     Matcher matcher = DELETE_REGEXP.matcher(updateQuery);
     if ( matcher.find() )
@@ -74,7 +72,7 @@ public class StatementDeleteHandler
       }
     } else
     {
-      throw new SdfException(String.format("Could not extract table name from query [%s]", updateQuery));
+      throw new AppException(String.format("Could not extract table name from query [%s]", updateQuery));
     }
   }
 
@@ -83,7 +81,7 @@ public class StatementDeleteHandler
     private String query;
     private String tableName;
     private List<String> keys;
-    private com.excellenceengineeringsolutions.spanner.StatementSelectHandler.SelectStatementHolder selectStatementHolder;
+    private StatementSelectHandler.SelectStatementHolder selectStatementHolder;
 
     public DeleteMutationHolder(String query,
                                 String tableName,
