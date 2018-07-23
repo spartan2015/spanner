@@ -1,0 +1,99 @@
+set serveroutput on
+
+CREATE OR REPLACE FUNCTION nullOraToSpan(nullable varchar2)
+RETURN VARCHAR2
+AS
+BEGIN
+	if nullable ='N' then
+		return ' NOT NULL';
+	else
+		return '';
+	end if;
+END;
+
+CREATE OR REPLACE PROCEDURE fk(tableName varchar2)
+AS
+BEGIN
+	FOR o IN (select dbms_metadata.get_dependent_ddl('REF_CONSTRAINT', table_name) as a from user_tables t where t.table_name=tableName and exists (select 1    from        user_constraints     where        table_name = t.table_name    and       constraint_type = 'R'))
+	LOOP
+	 DBMS_OUTPUT.put_line (o.a);
+	END LOOP;
+END;
+/
+
+CREATE OR REPLACE FUNCTION spanner_col_type(oraType varchar2, scale number, nullable varchar2)
+RETURN VARCHAR2
+IS
+BEGIN
+   IF oraType = 'VARCHAR2' then
+		return 'STRING(' || scale ||')' || nullOraToSpan(nullable);
+    ELSIF  oraType = 'CHAR' then
+	 return 'STRING(' || scale ||')' || nullOraToSpan(nullable);
+		 ELSIF  oraType = 'NVARCHAR2' then
+	 return 'STRING(' || scale ||')' || nullOraToSpan(nullable);
+    ELSIF  oraType = 'NUMBER' then
+ 	 return 'INT64'  || nullOraToSpan(nullable);
+    ELSIF  oraType='RAW' then
+     return 'BYTES(' || scale ||')'  || nullOraToSpan(nullable);
+	  ELSIF  oraType='TIMESTAMP(6)' then
+	  return 'TIMESTAMP' || nullOraToSpan(nullable);
+    else
+	 return '!!!' || oraType || '(' || scale ||')'  || nullOraToSpan(nullable);
+    END IF;
+END;
+
+
+
+CREATE OR REPLACE PROCEDURE indx(tableName varchar2)
+AS
+BEGIN
+	FOR o IN (select index_name,UNIQUENESS,table_name from user_INDEXES where table_name = tableName)
+		LOOP
+		 if o.UNIQUENESS = 'UNIQUE'	 then
+			DBMS_OUTPUT.put_line ( 'CREATE UNIQUE INDEX ' || o.index_name || ' on ' || o.table_name || '(');
+		ELSE
+			DBMS_OUTPUT.put_line ( 'CREATE INDEX ' || o.index_name || ' on ' || o.table_name || '(');
+		end if;
+		FOR col in (select index_name, column_name, table_name from ALL_IND_COLUMNS where index_name = o.index_name )
+		LOOP
+			DBMS_OUTPUT.put_line (col.column_name || ',');
+		end loop;
+		dbms_output.put_line(');');
+	END LOOP;
+END;
+/
+
+
+create or replace procedure span_nm
+as
+begin
+    for r in (select table_name from user_tables where table_name like 'NM%')
+     loop
+      pk(r.table_name);
+		  dbms_output.put_line(' ');
+		  fk(r.table_name);
+		  dbms_output.put_line(' ');
+		  indx(r.table_name);
+		  dbms_output.put_line(' ');
+     end loop;
+end;
+/
+
+CREATE OR REPLACE PROCEDURE pk(tblName varchar2)
+as
+	pkStr varchar2(200);
+BEGIN
+	DBMS_OUTPUT.put_line('CREATE TABLE ' || tblName || '(');select COLUMN_NAME,DATA_TYPE,DATA_LENGTH,NULLABLE from user_Tab_columns where table_name =
+	FOR o IN (tblName)
+	LOOP
+		DBMS_OUTPUT.put_line (o.COLUMN_NAME || ' ' || spanner_col_type(o.DATA_TYPE, o.DATA_LENGTH, o.NULLABLE) || ',');
+	END LOOP;
+
+	pkStr := '';
+	FOR o IN (SELECT cols.column_name FROM all_constraints cons, all_cons_columns cols 	WHERE cols.table_name = tblName	AND cons.constraint_type = 'P'	AND cons.constraint_name = cols.constraint_name	AND cons.owner = cols.owner	ORDER BY cols.table_name)
+	LOOP
+		pkStr := pkStr || (o.column_name || ',');
+	END LOOP;
+
+	DBMS_OUTPUT.put_line(') PRIMARY KEY(' || pkStr || ');');
+END;
