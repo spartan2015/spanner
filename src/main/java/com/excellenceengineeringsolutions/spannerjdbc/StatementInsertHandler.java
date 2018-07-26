@@ -1,5 +1,3 @@
-
-
 package com.excellenceengineeringsolutions.spannerjdbc;
 
 import com.excellenceengineeringsolutions.AppException;
@@ -36,7 +34,7 @@ public class StatementInsertHandler
     // or, throw `UnsupportedOperationException`
   }
 
-  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws AppException
+  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws Exception
   {
     String[] insertParts = parserInsert(insert);
     Mutation.WriteBuilder writer = Mutation.newInsertBuilder(insertParts[0]);
@@ -95,7 +93,7 @@ public class StatementInsertHandler
     return result.toArray();
   }
 
-  static String[] parserInsert(String insert) throws AppException
+  static String[] parserInsert(String insert) throws Exception
   {
     Matcher matcher = INSERT_INTO_REGEXP.matcher(insert);
     if ( matcher.find() )
@@ -103,7 +101,7 @@ public class StatementInsertHandler
       return new String[]{matcher.group(1), matcher.group(2), matcher.group(3)};
     } else
     {
-      throw new AppException(String.format("Could not extract table name from query [%s]", insert));
+      throw new Exception(String.format("Could not extract table name from query [%s]", insert));
     }
   }
 
@@ -164,13 +162,16 @@ public class StatementInsertHandler
       {
         throw new AppException("missing required params: " + requiredParams + " in original query: " + query);
       }
-      for ( String defaultParam : defaultParameters.get(tableName).keySet() )
+      if ( defaultParameters.get(tableName)!=null)
       {
-        if ( !paramsInInsert.containsKey(defaultParam) )
+        for ( String defaultParam : defaultParameters.get(tableName).keySet() )
         {
-          Object value = getInsertParamValue(defaultParam);
-          paramsInInsert.put(defaultParam, value);
-          bindParam(mutationBuilder, defaultParam, value);
+          if ( !paramsInInsert.containsKey(defaultParam) )
+          {
+            Object value = getInsertParamValue(defaultParam);
+            paramsInInsert.put(defaultParam, value);
+            bindParam(mutationBuilder, defaultParam, value);
+          }
         }
       }
       return mutationBuilder.build();
