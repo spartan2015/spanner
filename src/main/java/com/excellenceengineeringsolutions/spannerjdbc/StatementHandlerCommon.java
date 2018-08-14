@@ -1,16 +1,29 @@
+//  Source file: P:/advantage/com.excellenceengineeringsolutions/StatementHandler.java
 
+/*
+ * Copyright (c) Optiva Inc. 2000 - 2018  All Rights Reserved
+ * The reproduction, transmission or use of this document or
+ * its contents is not permitted without express written
+ * authority. Offenders will be liable for damages. All rights,
+ * including rights created by patent grant or registration of
+ * a utility model or design, are reserved.
+ * Technical modifications possible.
+ * Technical specifications and features are binding only
+ * insofar as they are specifically and expressly agreed upon
+ * in a written contract.
+ */
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.Type;
 
 import java.util.ArrayList;
@@ -23,6 +36,8 @@ public class StatementHandlerCommon
 {
   public static final String CN = "StatementHandlerCommon";
   public static final String CNP = CN + ".";
+  public static final String classVersion = "@(#) de.siemens.advantage.platform.batch.batch.impl.spanner" +
+    ".StatementHandlerCommon.java : /main/br_PG931/3 : ";
 
   public static final String TABLE_NAME_REG_EXP = "[a-z_A-Z0-9]+";
   public static final String DYNAMIC = "#dynamic#";
@@ -319,12 +334,13 @@ public class StatementHandlerCommon
     if ( value.length() == 0 )
     {
       return null;
-    } else if("null".equalsIgnoreCase(value)){
-      return null;
     } else if ( value.startsWith("'") )
     {
       return value.substring(1, value.length() - 1);
-    } else if ( value.matches("\\d+") )
+    }else if(value.startsWith("time:") ){
+      return Timestamp.of(new java.util.Date(Long.valueOf(value.substring(5, value.length()))));
+    }
+    else if ( value.matches("\\d+") )
     {
       return Long.parseLong(value);
     } else
@@ -335,7 +351,7 @@ public class StatementHandlerCommon
 
   static String join(List<String> selectKeys)
   {
-    if ( selectKeys == null || selectKeys.isEmpty() )
+    if ( selectKeys.isEmpty() )
     {
       return DYNAMIC;
     }
@@ -357,13 +373,11 @@ public class StatementHandlerCommon
     }
   }
 
-  public static List<String> getKeys(DatabaseClient client, String tableName)
+  public static List<String> getKeys(TransactionContext transaction, String tableName)
   {
     List<String> keyColumns = new ArrayList<>();
-    String query = String.format("select column_name from INFORMATION_SCHEMA.INDEX_COLUMNS " +
-      "where index_type='PRIMARY_KEY' and upper(table_name) = '%s'", tableName.toUpperCase());
-    System.out.println(query);
-    ResultSet rs = client.singleUse().executeQuery(Statement.of(query));
+    ResultSet rs = transaction.executeQuery(Statement.of(String.format("select column_name from INFORMATION_SCHEMA.INDEX_COLUMNS " +
+      "where index_type='PRIMARY_KEY' and table_name = 'ATADH_CorrEventsStatTabl'",tableName)));
     while(rs.next()){
       keyColumns.add(rs.getString(0));
     }
