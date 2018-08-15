@@ -2,85 +2,122 @@ package com.excellenceengineeringsolutions.copydb;
 
 import com.google.auth.oauth2.ServiceAccountJwtAccessCredentials;
 import com.google.cloud.grpc.GrpcTransportOptions;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
 
-@Service
-public class SpannerService {
+public class SpannerService
+{
 
-    private static final Logger log = LoggerFactory.getLogger(SpannerService.class);
+  private static final Logger log = LoggerFactory.getLogger(SpannerService.class);
 
-    private final String projectId;
-    private final int minSessions;
-    private final int maxIdleSessions;
-    private final int maxSessions;
-    private final int keepAliveIntervalMinutes;
-    private final Resource authKey;
+  private SpannerProperties spannerProperties;
+  private Spanner spanner;
 
-    private final Spanner spanner;
+  public SpannerService(SpannerProperties spannerProperties)
+  {
+    this.spannerProperties = spannerProperties;
+  }
 
-    SpannerService(
-            @Value("${spanner.projectId}") String projectId,
-            @Value("${spanner.minSessions}") int minSessions,
-            @Value("${spanner.maxIdleSessions}") int maxIdleSessions,
-            @Value("${spanner.maxSessions}") int maxSessions,
-            @Value("${spanner.keepAliveIntervalMinutes}") int keepAliveIntervalMinutes,
-            @Value("classpath:creds.json") Resource authKey) {
-        this.projectId = projectId;
-        this.minSessions = minSessions;
-        this.maxIdleSessions = maxIdleSessions;
-        this.maxSessions = maxSessions;
-        this.keepAliveIntervalMinutes = keepAliveIntervalMinutes;
-        this.authKey = authKey;
+  @PostConstruct
+  public void init()
+  {
+    SpannerOptions spannerOptions = buildSpannerOptions();
+    spanner = spannerOptions.getService();
+  }
 
-        SpannerOptions spannerOptions = buildSpannerOptions();
-        spanner = spannerOptions.getService();
+  @PreDestroy
+  public void closeSpanner()
+  {
+    log.info("Closing spanner...");
+    try
+    {
+      spanner.close();
     }
-
-    DatabaseClient getDatabaseClient(String instanceId, String databaseId) {
-        return spanner.getDatabaseClient(DatabaseId.of(InstanceId.of(projectId, instanceId), databaseId));
+    catch ( IllegalStateException ise )
+    {
+      //Dirty hack to suppress an error about closing spanner which has already been closed.
+      if ( !ise.getMessage()
+        .contains("Cloud Spanner client has been closed") )
+      {
+        throw ise;
+      }
     }
+    log.info("Closed spanner");
+  }
 
-    List<String> getDdl(String instanceId, String databaseId) {
-        return spanner.getDatabaseAdminClient().getDatabaseDdl(instanceId, databaseId);
-    }
+  public Spanner getSpanner()
+  {
+    return spanner;
+  }
 
-    private SpannerOptions buildSpannerOptions() {
-        SpannerOptions.Builder builder = SpannerOptions.newBuilder()
-                .setProjectId(projectId)
-                .setCredentials(buildCredentials())
-                .setSessionPoolOption(buildSessionPoolOptions());
-        builder.setTransportOptions(GrpcTransportOptions.newBuilder().build());
-        return builder.build();
-    }
+  public DatabaseClient getDatabaseClient()
+  {
 
-    private SessionPoolOptions buildSessionPoolOptions() {
-        SessionPoolOptions.Builder builder = SessionPoolOptions.newBuilder();
-        builder.setMinSessions(minSessions);
-        builder.setMaxIdleSessions(maxIdleSessions);
-        builder.setMaxSessions(maxSessions);
-        builder.setKeepAliveIntervalMinutes(keepAliveIntervalMinutes);
-        return builder.build();
-    }
+    return spanner
+      .getDatabaseClient(DatabaseId.of(InstanceId.of(spannerProperties.getProject(),
+        spannerProperties.getInstance()), spannerProperties.getDatabase()));
+  }
 
-    private ServiceAccountJwtAccessCredentials buildCredentials() {
-        try {
-            return ServiceAccountJwtAccessCredentials.fromStream(new FileInputStream(authKey.getFile()));
-        } catch (IOException e) {
-            throw new IllegalArgumentException(
-                    String.format("Configured spanner credentials file [%s] not found", authKey));
-        }
+  public DatabaseAdminClient getDatabaseAdminClient()
+  {
+    return spanner.getDatabaseAdminClient();
+  }
+
+  public List<String> getDdl()
+  {
+    return spanner.getDatabaseAdminClient()
+      .getDatabaseDdl(spannerProperties.getInstance(),spannerProperties.getDatabase());
+  }
+
+  private SpannerOptions buildSpannerOptions()
+  {
+    SpannerOptions.Builder builder = SpannerOptions.newBuilder()
+      .setProjectId(spannerProperties.project)
+      .setCredentials(buildCredentials(spannerProperties.credentialsFile))
+      .setSessionPoolOption(buildSessionPoolOptions());
+    builder.setTransportOptions(GrpcTransportOptions.newBuilder()
+      .build());
+    return builder.build();
+  }
+
+  private SessionPoolOptions buildSessionPoolOptions()
+  {
+    SessionPoolOptions.Builder builder = SessionPoolOptions.newBuilder();
+    builder.setMinSessions(spannerProperties.minSessions);
+    builder.setMaxIdleSessions(spannerProperties.maxIdleSessions);
+    builder.setMaxSessions(spannerProperties.maxSessions);
+    builder.setKeepAliveIntervalMinutes(spannerProperties.keepAliveIntervalMinutes);
+    return builder.build();
+  }
+
+  private ServiceAccountJwtAccessCredentials buildCredentials(String credentialsFile)
+  {
+    try
+    {
+      return ServiceAccountJwtAccessCredentials.fromStream(new FileInputStream(credentialsFile));
     }
+    catch ( IOException e )
+    {
+      throw new IllegalArgumentException(
+        String.format("Configured spanner credentials file [%s] not found", credentialsFile));
+    }
+  }
+
+  public SpannerProperties getSpannerProperties()
+  {
+    return spannerProperties;
+  }
 }

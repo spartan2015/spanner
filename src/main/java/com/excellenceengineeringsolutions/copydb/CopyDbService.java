@@ -1,88 +1,130 @@
 package com.excellenceengineeringsolutions.copydb;
 
 
-import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-
+import com.google.common.base.Stopwatch;
 import one.util.streamex.EntryStream;
 import one.util.streamex.StreamEx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class CopyDbService {
 
-    private static final List<Predicate<String>> EXCLUDE_TABLE_PREDICATES = Arrays.asList(
-    );
+    public static final int SPANNER_MUTATIONS_PER_TRANSACTION_LIMIT = 20_000;
     private static final Logger log = LoggerFactory.getLogger(CopyDbService.class);
-    private final SpannerService spannerService;
+    private final MigrationValidation migrationValidation;
+    private final DatabaseFactory databaseFactory;
 
-    CopyDbService(SpannerService spannerService) {
-        this.spannerService = spannerService;
+    CopyDbService(MigrationValidation migrationValidation, DatabaseFactory databaseFactory) {
+        this.migrationValidation = migrationValidation;
+        this.databaseFactory = databaseFactory;
     }
 
-    private static boolean isCreateTableLine(String line) {
-        return line.startsWith("CREATE TABLE");
+    @Autowired
+    private FromSpannerService fromSpannerService;
+    @Autowired
+    private ToSpannerService toSpannerService;
+
+    void copy() {
+        Database from = databaseFactory.load(fromSpannerService);
+        Database to = toSpannerService.getSpannerProperties().isCreateNew() ?
+                databaseFactory.newDatabase(fromSpannerService, from, toSpannerService) :
+                databaseFactory.load(toSpannerService);
+        migrationValidation.preValidation(from, to);
+        Stopwatch migrationStopwatch = Stopwatch.createStarted();
+        log.info("Starting migration {} -> {}...", from, to);
+
+        Map<Boolean, List<TableMutations>> byHavingInterleavingTables = from.tables()
+                .filter(table -> table.numberOfRows > 0) // Skip tables without data
+                .parallel(new ForkJoinPool(200))
+                .map(fromTable -> tableMutations(fromTable, from))
+                .partitioningBy(tm -> tm.table.interleavedTables.isEmpty());
+
+        List<MutationWithSize> independentMutations =
+                StreamEx.of(byHavingInterleavingTables.get(true)).toFlatList(tm -> tm.mutations);
+        List<MutationWithSize> mutationsWithInterleaving =
+                StreamEx.of(byHavingInterleavingTables.get(false)).toFlatList(tm -> tm.mutations);
+        int totalNumberOfMutations = independentMutations.size() + mutationsWithInterleaving.size();
+
+        List<List<Mutation>> independentMutationChunks = splitIntoChunks(independentMutations);
+        AtomicLong mutationCounter = new AtomicLong();
+        EntryStream.of(independentMutationChunks)
+                .parallel(new ForkJoinPool(200))
+                .forKeyValue((index, mutationChunk) -> {
+                    Timestamp timestamp = to.client.write(mutationChunk);
+                    long progress = mutationCounter.addAndGet(mutationChunk.size());
+                    log.info("{} / {} mutations at {}", progress, totalNumberOfMutations, timestamp);
+                });
+
+        List<List<Mutation>> dependentMutationChunks = splitIntoChunks(mutationsWithInterleaving);
+        EntryStream.of(dependentMutationChunks)
+                .forKeyValue((index, mutationChunk) -> {
+                    Timestamp timestamp = to.client.write(mutationChunk);
+                    long progress = mutationCounter.addAndGet(mutationChunk.size());
+                    log.info("{} / {} mutations at {}", progress, totalNumberOfMutations, timestamp);
+                });
+
+        migrationValidation.postValidation(from, to);
+        log.info("Migrated in {} seconds", migrationStopwatch.elapsed(TimeUnit.SECONDS));
     }
 
-    void migrate(String fromInstance, String fromDatabase, String toInstance, String toDatabase) {
-        log.info("Starting migration {}:{} -> {}:{}...", fromInstance, fromDatabase, toInstance, toDatabase);
-        DatabaseClient databaseFrom = spannerService.getDatabaseClient(fromInstance, fromDatabase);
-        DatabaseClient databaseTo = spannerService.getDatabaseClient(toInstance, toDatabase);
-
-        List<String> ddl = spannerService.getDdl(toInstance, toDatabase);
-
-        List<String> tablesToCopy = StreamEx.of(ddl)
-                .filter(CopyDbService::isCreateTableLine)
-                .filter(s -> EXCLUDE_TABLE_PREDICATES.stream().noneMatch(it -> it.test(s)))
-                .toList();
-
-        tablesToCopy.parallelStream()
-                .forEach(table -> migrate(table, databaseFrom, databaseTo, toInstance, toDatabase));
-    }
-
-    private void migrate(String tableSchema, DatabaseClient databaseFrom, DatabaseClient databaseTo,
-            String toInstanceId, String toDatabaseId) {
-        List<String> lines = Splitter.on("\n").splitToList(tableSchema);
-        String tableName = lines.get(0).replace("CREATE TABLE", "").replace("(", "").trim();
-        log.info("Copying {}...", tableName);
-        Map<String, String> columnDefinitions = StreamEx.of(lines)
-                .skip(1) //Skip "CREATE TABLE ("
-                .takeWhile(l -> l.startsWith(")")) // Read while ) - means end of column definitions
-                .map(l -> l.trim().split(" "))
-                .toMap(parts -> parts[0], parts -> parts[1]);
-
-        log.info("Found column definitions {}",
-                EntryStream.of(columnDefinitions).mapKeyValue((name, type) -> name + ": " + type)
-                        .joining(System.lineSeparator() + "\t"));
-
-        log.info("Truncating table {} in {}:{} ...", tableName, toInstanceId, toDatabaseId);
-        databaseTo.singleUse().executeQuery(Statement.of("TRUNCATE TABLE " + tableName)).close();
-
-        try (ResultSet rs = databaseFrom.singleUse().executeQuery(Statement.of("SELECT * FROM " + tableName))) {
-            List<Mutation> mutations = new ArrayList<>();
-            while (rs.next()) {
-                Mutation.WriteBuilder builder = Mutation.newInsertBuilder(tableName);
-                for (String column : columnDefinitions.keySet()) {
-                    setToValue(builder, column, columnDefinitions.get(column), rs);
-                }
-                mutations.add(builder.build());
+    private List<List<Mutation>> splitIntoChunks(List<MutationWithSize> allMutations) {
+        List<List<Mutation>> mutationChunks = new ArrayList<>();
+        int currentList = 0;
+        int sizeLeft = SPANNER_MUTATIONS_PER_TRANSACTION_LIMIT;
+        mutationChunks.add(new ArrayList<>());
+        for (MutationWithSize mutation : allMutations) {
+            int mutationSize = mutation.size;
+            if (sizeLeft - mutationSize < 0) {
+                currentList++;
+                sizeLeft = SPANNER_MUTATIONS_PER_TRANSACTION_LIMIT;
+                mutationChunks.add(new ArrayList<>());
             }
-            log.info("{} mutations to write", mutations.size());
-            Lists.partition(mutations, 30).forEach(databaseTo::write);
+            sizeLeft -= mutationSize;
+            mutationChunks.get(currentList).add(mutation.mutation);
+        }
+        return mutationChunks;
+    }
+
+    private TableMutations tableMutations(Table table, Database from) {
+        List<MutationWithSize> mutations = new ArrayList<>(getMutationsOfTable(table, from));
+        for (Table interleavedTable : table.interleavedTables) {
+            mutations.addAll(getMutationsOfTable(interleavedTable, from));
+        }
+        return new TableMutations(table, mutations, mutations.stream().mapToInt(m -> m.size).sum());
+    }
+
+    private List<MutationWithSize> getMutationsOfTable(Table table, Database from) {
+        try (ResultSet rs = from.client.singleUse()
+                .executeQuery(Statement.of("SELECT * FROM " + table.name))) {
+
+            List<MutationWithSize> mutations = new ArrayList<>();
+            while (rs.next()) {
+                Mutation.WriteBuilder builder = Mutation.newInsertBuilder(table.name);
+                for (String column : table.columnsToTypes.keySet()) {
+                    setToValue(builder, column, table.columnsToTypes.get(column), rs);
+                }
+                Mutation mutation = builder.build();
+                int size = table.columnsToTypes.size() + table.numberOfIndexes;
+                mutations.add(new MutationWithSize(mutation, size));
+            }
+            log.info("{} with {} write mutations", table.name, mutations.size());
+            return mutations;
         }
     }
-
 
     private void setToValue(Mutation.WriteBuilder builder, String column, String type, ResultSet rs) {
         if (!rs.isNull(column)) {
