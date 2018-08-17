@@ -1,4 +1,17 @@
+//  Source file: P:/advantage/de.siemens.advantage.platform.batch.batch.impl.spanner/StatementUpdateHandler.java
 
+/*
+ * Copyright (c) Optiva Inc. 2000 - 2018  All Rights Reserved
+ * The reproduction, transmission or use of this document or
+ * its contents is not permitted without express written
+ * authority. Offenders will be liable for damages. All rights,
+ * including rights created by patent grant or registration of
+ * a utility model or design, are reserved.
+ * Technical modifications possible.
+ * Technical specifications and features are binding only
+ * insofar as they are specifically and expressly agreed upon
+ * in a written contract.
+ */
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
@@ -29,7 +42,10 @@ import static com.excellenceengineeringsolutions.spannerjdbc.StatementSelectHand
  */
 public class StatementUpdateHandler
 {
-
+  public static final String CN = "StatementUpdateHandler";
+  public static final String CNP = CN + ".";
+  public static final String classVersion = "@(#) de.siemens.advantage.platform.batch.batch.impl.spanner" +
+    ".StatementUpdateHandler.java : /main/br_PG931/3 : ";
   private static Pattern UPDATE_REGEXP = Pattern.compile("(?i)update[ \n]+(" + TABLE_NAME_REG_EXP + ")" + "[ \n]+SET[ \n]+" + "(.+)" + "[ \n]+(?:WHERE[ \n]+" + "(.*))");
 
   // force non-instantiability through the `private` constructor

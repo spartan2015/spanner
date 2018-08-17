@@ -33,6 +33,7 @@ import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCom
 import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.bindParam;
 import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.parseValue;
 
+
 /**
  * Handles executions of sql queries on spanner
  */
@@ -49,7 +50,7 @@ public class StatementInsertHandler
     // or, throw `UnsupportedOperationException`
   }
 
-  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws Exception
+  public static InsertMutationHolder spannerInsertBuilder(String insert, Map<String, Map<String, Object>> defaultParameters) throws AppException
   {
     String[] insertParts = parserInsert(insert);
     Mutation.WriteBuilder writer = Mutation.newInsertBuilder(insertParts[0]);
@@ -109,7 +110,7 @@ public class StatementInsertHandler
     return result.toArray();
   }
 
-  static String[] parserInsert(String insert) throws Exception
+  static String[] parserInsert(String insert) throws AppException
   {
     Matcher matcher = INSERT_INTO_REGEXP.matcher(insert);
     if ( matcher.find() )
@@ -117,7 +118,7 @@ public class StatementInsertHandler
       return new String[]{matcher.group(1), matcher.group(2), matcher.group(3)};
     } else
     {
-      throw new Exception(String.format("Could not extract table name from query [%s]", insert));
+      throw new AppException(String.format("Could not extract table name from query [%s]", insert));
     }
   }
 

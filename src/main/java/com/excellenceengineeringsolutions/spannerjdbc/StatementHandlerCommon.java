@@ -18,12 +18,12 @@ package com.excellenceengineeringsolutions.spannerjdbc;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.Type;
 
 import java.util.ArrayList;
@@ -334,6 +334,8 @@ public class StatementHandlerCommon
     if ( value.length() == 0 )
     {
       return null;
+    } else if("null".equalsIgnoreCase(value)){
+      return null;
     } else if ( value.startsWith("'") )
     {
       return value.substring(1, value.length() - 1);
@@ -351,7 +353,7 @@ public class StatementHandlerCommon
 
   static String join(List<String> selectKeys)
   {
-    if ( selectKeys.isEmpty() )
+    if ( selectKeys == null || selectKeys.isEmpty() )
     {
       return DYNAMIC;
     }
@@ -373,11 +375,12 @@ public class StatementHandlerCommon
     }
   }
 
-  public static List<String> getKeys(TransactionContext transaction, String tableName)
+  public static List<String> getKeys(DatabaseClient client, String tableName)
   {
     List<String> keyColumns = new ArrayList<>();
-    ResultSet rs = transaction.executeQuery(Statement.of(String.format("select column_name from INFORMATION_SCHEMA.INDEX_COLUMNS " +
-      "where index_type='PRIMARY_KEY' and table_name = 'ATADH_CorrEventsStatTabl'",tableName)));
+    String query = String.format("select column_name from INFORMATION_SCHEMA.INDEX_COLUMNS " +
+      "where index_type='PRIMARY_KEY' and upper(table_name) = '%s'", tableName.toUpperCase());
+    ResultSet rs = client.singleUse().executeQuery(Statement.of(query));
     while(rs.next()){
       keyColumns.add(rs.getString(0));
     }

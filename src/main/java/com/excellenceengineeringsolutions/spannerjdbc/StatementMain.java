@@ -1,4 +1,17 @@
+//  Source file: P:/advantage/com.optiva.unified.spanner/StatementMain.java
 
+/*
+ * Copyright (c) Optiva Inc. 2000 - 2018  All Rights Reserved
+ * The reproduction, transmission or use of this document or
+ * its contents is not permitted without express written
+ * authority. Offenders will be liable for damages. All rights,
+ * including rights created by patent grant or registration of
+ * a utility model or design, are reserved.
+ * Technical modifications possible.
+ * Technical specifications and features are binding only
+ * insofar as they are specifically and expressly agreed upon
+ * in a written contract.
+ */
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
@@ -32,20 +45,20 @@ public class StatementMain
   {
     try
     {
-      String instanceId = args[0];
-      String databaseId = args[1];
-      String statement = args[2];
+      String projectId = args[0];
+      String instanceId = args[1];
+      String databaseId = args[2];
+      String statement = args[3];
 
-      execute(instanceId, databaseId, statement);
+      execute(projectId, instanceId, databaseId, statement);
     }catch(Exception ex){
       System.out.println("Usage parameters: instance db any-query");
       ex.printStackTrace();
     }
   }
 
-  public static void execute(String instanceId, String databaseId, String statement) throws AppException
+  public static void execute(String projectId, String instanceId, String databaseId, String statement) throws AppException
   {
-    String projectId = "a-cloud-spanner";
     SpannerOptions.Builder spannerOptionsBuilder = SpannerOptions.newBuilder()
       .setProjectId(projectId)
       .setSessionPoolOption(

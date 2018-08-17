@@ -1,4 +1,17 @@
+//  Source file: P:/advantage/de.siemens.advantage.platform.batch.batch.impl.spanner/StatementDeleteHandler.java
 
+/*
+ * Copyright (c) Optiva Inc. 2000 - 2018  All Rights Reserved
+ * The reproduction, transmission or use of this document or
+ * its contents is not permitted without express written
+ * authority. Offenders will be liable for damages. All rights,
+ * including rights created by patent grant or registration of
+ * a utility model or design, are reserved.
+ * Technical modifications possible.
+ * Technical specifications and features are binding only
+ * insofar as they are specifically and expressly agreed upon
+ * in a written contract.
+ */
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
@@ -9,6 +22,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
+import org.apache.commons.collections.CollectionUtils;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -23,13 +37,19 @@ import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCom
 import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCommon.setToBuilderFromResultSet;
 import static com.excellenceengineeringsolutions.spannerjdbc.StatementSelectHandler.spannerQueryBuilder;
 
+
 /**
  * Handling delete sql statements through Spanner Client
  */
 public class StatementDeleteHandler
 {
-
-  private static final Pattern DELETE_REGEXP = Pattern.compile("(?i)DELETE[ \n]+FROM[ \n]+(" + TABLE_NAME_REG_EXP + ")" + "([ \n]+WHERE[ \n]+" + "(.*))?");
+  public static final String CN = "StatementDeleteHandler";
+  public static final String CNP = CN + ".";
+  public static final String classVersion = "@(#) de.siemens.advantage.platform.batch.batch.impl.spanner" +
+    ".StatementDeleteHandler.java : /main/br_PG931/3 : ";
+  private static final Pattern DELETE_REGEXP = Pattern.compile("(?i)DELETE[ \n]+FROM[ \n]" +
+    "+("
+    + TABLE_NAME_REG_EXP + ")" + "([ \n]+WHERE[ \n]+" + "(.*))?");
 
   // force non-instantiability through the `private` constructor
   private StatementDeleteHandler()
@@ -39,7 +59,7 @@ public class StatementDeleteHandler
   }
 
   public static DeleteMutationHolder spannerDeleteBuilder(
-                                                          String deleteQuery) throws AppException
+    String deleteQuery) throws AppException
   {
     return spannerDeleteBuilder(null, deleteQuery);
   }
@@ -56,8 +76,6 @@ public class StatementDeleteHandler
       queryParts[0], selectKeys, selectStatementHolder);
   }
 
-
-
   static String[] parserDelete(String updateQuery) throws AppException
   {
     Matcher matcher = DELETE_REGEXP.matcher(updateQuery);
@@ -72,7 +90,8 @@ public class StatementDeleteHandler
       }
     } else
     {
-      throw new AppException(String.format("Could not extract table name from query [%s]", updateQuery));
+      throw new AppException(String.format("Could not extract table name from query [%s]",
+        updateQuery));
     }
   }
 
@@ -110,29 +129,35 @@ public class StatementDeleteHandler
     public Integer execute(DatabaseClient client)
     {
       int index = -1;
-      if ((keys==null || keys.isEmpty()) && (index = selectStatementHolder.query.indexOf(DYNAMIC))!=-1){
+      if ( CollectionUtils.isEmpty(keys) && (index = selectStatementHolder.query
+        .indexOf(DYNAMIC)) != -1 )
+      {
         keys = getKeys(client, tableName);
-        if (keys==null || keys.isEmpty()){
+        if ( keys == null || keys.isEmpty() )
+        {
           throw new RuntimeException("No keys found for table: " + tableName);
         }
-        selectStatementHolder.query.replace(index, index+DYNAMIC.length(),join(keys));
+        selectStatementHolder.query.replace(index, index + DYNAMIC.length(), join(keys));
       }
-      return client.readWriteTransaction().run(new TransactionRunner.TransactionCallable<Integer>()
-      {
-        @Nullable
-        @Override
-        public Integer run(TransactionContext transaction) throws Exception
+      return client.readWriteTransaction()
+        .run(new TransactionRunner.TransactionCallable<Integer>()
         {
-          return DeleteMutationHolder.this.execute(transaction);
-        }
-      });
+          @Nullable
+          @Override
+          public Integer run(TransactionContext transaction) throws Exception
+          {
+            return DeleteMutationHolder.this.execute(transaction);
+          }
+        });
     }
 
     public Integer execute(TransactionContext transaction)
     {
       int index = -1;
-      if ((index = selectStatementHolder.query.indexOf(DYNAMIC))!=-1){
-        throw new RuntimeException("Cannot dynamically fetch keys for query in a read write transaction. You must specify the keys!");
+      if ( (index = selectStatementHolder.query.indexOf(DYNAMIC)) != -1 )
+      {
+        throw new RuntimeException("Cannot dynamically fetch keys for query in " +
+          "a read write transaction. You must specify the keys!");
       }
       int count = 0;
       try ( ResultSet rs = selectStatementHolder.execute(transaction) )

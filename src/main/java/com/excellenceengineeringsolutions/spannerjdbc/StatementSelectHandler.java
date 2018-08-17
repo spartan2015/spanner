@@ -1,4 +1,17 @@
+//  Source file: P:/advantage/de.siemens.advantage.platform.batch.batch.impl.spanner/StatementSelectHandler.java
 
+/*
+ * Copyright (c) Optiva Inc. 2000 - 2018  All Rights Reserved
+ * The reproduction, transmission or use of this document or
+ * its contents is not permitted without express written
+ * authority. Offenders will be liable for damages. All rights,
+ * including rights created by patent grant or registration of
+ * a utility model or design, are reserved.
+ * Technical modifications possible.
+ * Technical specifications and features are binding only
+ * insofar as they are specifically and expressly agreed upon
+ * in a written contract.
+ */
 
 package com.excellenceengineeringsolutions.spannerjdbc;
 
@@ -6,7 +19,6 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
-
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +31,10 @@ import static com.excellenceengineeringsolutions.spannerjdbc.StatementHandlerCom
  */
 public class StatementSelectHandler
 {
-
+  public static final String CN = "StatementSelectHandler";
+  public static final String CNP = CN + ".";
+  public static final String classVersion = "@(#) de.siemens.advantage.platform.batch.batch.impl.spanner" +
+    ".StatementSelectHandler.java : /main/br_PG931/3 : ";
 
   // force non-instantiability through the `private` constructor
   private StatementSelectHandler()
